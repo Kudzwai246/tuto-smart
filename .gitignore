@@ -1,0 +1,12 @@
+# Android / IntelliJ
+/.gradle
+/local.properties
+/.idea
+**/build
+**/captures
+.gradle
+/.DS_Store
+/.vscode
+# Node
+/node_modules
+/admin-console/build

@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Tuto</string>
+    <!-- Placeholders to be replaced at CI build time -->
+    <string name="SUPABASE_URL">__SUPABASE_URL__</string>
+    <string name="SUPABASE_ANON_KEY">__SUPABASE_ANON_KEY__</string>
+</resources>
