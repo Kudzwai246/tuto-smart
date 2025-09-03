@@ -41,8 +41,15 @@ jobs:
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline.zip
           unzip -q cmdline.zip -d cmdline-tools-temp
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-          mv cmdline-tools-temp/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
+          # move the inner cmdline-tools/* (not the outer folder) into latest
+          if [ -d cmdline-tools-temp/cmdline-tools ]; then
+            mv cmdline-tools-temp/cmdline-tools/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
+          else
+            mv cmdline-tools-temp/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/" || true
+          fi
           rm -f cmdline.zip
+          # make sure sdkmanager is executable
+          chmod -R +x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" || true
           export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK_ROOT}" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK_ROOT}" --licenses
