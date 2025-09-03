@@ -33,7 +33,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip wget curl python3 git gradle
 
-      - name: Install Android SDK command-line tools
+      - name: Install Android SDK command-line tools (robust)
         run: |
           export ANDROID_SDK_ROOT="${RUNNER_TEMP}/android-sdk"
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
@@ -41,14 +41,22 @@ jobs:
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline.zip
           unzip -q cmdline.zip -d cmdline-tools-temp
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-          # move the inner cmdline-tools/* (not the outer folder) into latest
-          if [ -d cmdline-tools-temp/cmdline-tools ]; then
-            mv cmdline-tools-temp/cmdline-tools/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
+
+          # find the sdkmanager file inside the unzipped tree and move its parent into latest
+          SDKMGR_FILE=$(find cmdline-tools-temp -type f -name sdkmanager -print -quit || true)
+          if [ -n "$SDKMGR_FILE" ]; then
+            SDK_BIN_DIR=$(dirname "$SDKMGR_FILE")                # .../something/bin
+            SDK_PARENT_DIR=$(dirname "$SDK_BIN_DIR")            # .../something (this contains bin)
+            echo "Found sdkmanager at: $SDKMGR_FILE"
+            echo "Moving contents of $SDK_PARENT_DIR into $ANDROID_SDK_ROOT/cmdline-tools/latest/"
+            mv "$SDK_PARENT_DIR"/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/" || true
           else
+            # fallback - move everything
+            echo "sdkmanager not found; falling back to moving cmdline-tools-temp/*"
             mv cmdline-tools-temp/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/" || true
           fi
+
           rm -f cmdline.zip
-          # make sure sdkmanager is executable
           chmod -R +x "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" || true
           export PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="${ANDROID_SDK_ROOT}" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
