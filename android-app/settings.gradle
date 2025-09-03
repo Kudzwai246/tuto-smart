@@ -1,2 +1,15 @@
-rootProject.name = "tuto"
-include ':app'
+pluginManagement {
+  repositories {
+    gradlePluginPortal()
+    google()
+    mavenCentral()
+  }
+  resolutionStrategy {
+    eachPlugin {
+      if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
+        useModule("org.jetbrains.kotlin:org.jetbrains.kotlin.gradle.plugin:1.8.22")
+      }
+    }
+  }
+}
+rootProject.name = 'tuto-smart-android'
