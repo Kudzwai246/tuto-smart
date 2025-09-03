@@ -5,40 +5,84 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Inject Supabase secrets into strings.xml
         run: |
-          sed -i "s|__SUPABASE_URL__|${{ secrets.SUPABASE_URL }}|g" android-app/app/src/main/res/values/strings.xml
-          sed -i "s|__SUPABASE_ANON_KEY__|${{ secrets.SUPABASE_ANON_KEY }}|g" android-app/app/src/main/res/values/strings.xml
+          if [ -f android-app/app/src/main/res/values/strings.xml ]; then
+            sed -i "s|__SUPABASE_URL__|${{ secrets.SUPABASE_URL }}|g" android-app/app/src/main/res/values/strings.xml || true
+            sed -i "s|__SUPABASE_ANON_KEY__|${{ secrets.SUPABASE_ANON_KEY }}|g" android-app/app/src/main/res/values/strings.xml || true
+          fi
 
-      - name: Set up JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Grant execute for gradlew
-        run: chmod +x android-app/gradlew || true
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip wget curl python3 git gradle
+
+      - name: Install Android SDK command-line tools
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline.zip
+          unzip -q cmdline.zip -d cmdline-tools-temp
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest
+          mv cmdline-tools-temp/* $ANDROID_SDK_ROOT/cmdline-tools/latest/
+          rm -f cmdline.zip
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest"
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK_ROOT} --licenses
+
+      - name: Show Android SDK info
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la $ANDROID_SDK_ROOT
+          ls -la $ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+
+      - name: Ensure gradle wrapper exists (or create)
+        run: |
+          cd android-app || exit 1
+          if [ ! -f ./gradlew ]; then
+            echo "gradlew not found — attempting to create wrapper using system gradle"
+            gradle wrapper || true
+            chmod +x ./gradlew || true
+          else
+            chmod +x ./gradlew
+          fi
 
       - name: Build Debug APK
         working-directory: android-app
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          JAVA_HOME: ${{ steps.setup-java.outputs.java-home || '/usr/lib/jvm/java-17-openjdk-amd64' }}
         run: |
-          if [ ! -f ./gradlew ]; then
-            sudo apt-get update && sudo apt-get install -y wget unzip
-            wget https://services.gradle.org/distributions/gradle-7.5.1-bin.zip -O gradle.zip
-            unzip gradle.zip -d /opt/gradle
-            /opt/gradle/gradle-7.5.1/bin/gradle wrapper
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT}"
+          export ANDROID_HOME="${ANDROID_SDK_ROOT}"
+          export PATH="$ANDROID_SDK_ROOT/platform-tools:$PATH"
+          if [ -f ./gradlew ]; then
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
           fi
-          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: tuto-app-debug-apk
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          path: android-app/app/build/outputs/apk/debug/**/*.apk
