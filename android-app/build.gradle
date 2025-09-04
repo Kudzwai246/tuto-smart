@@ -1,6 +1,4 @@
-/* Project-level build.gradle (Groovy)
-   Ensures kotlin-gradle-plugin is on the buildscript classpath for legacy builds.
-*/
+/* project-level build.gradle: ensure kotlin + android gradle plugin on classpath */
 buildscript {
     ext.kotlin_version = '1.8.22'
     repositories {
@@ -9,8 +7,7 @@ buildscript {
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlin_version}"
-        // You can add Android Gradle Plugin here if needed, e.g.
-        // classpath "com.android.tools.build:gradle:8.1.1"
+        classpath "com.android.tools.build:gradle:8.1.1"   // add AGP so plugin resolves
     }
 }
 
